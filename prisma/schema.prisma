@@ -11,8 +11,8 @@ model Producto {
   id          Int      @id @default(autoincrement())
   nombre      String
   descripcion String
-  precio      Decimal(10, 2) // Ajustamos el tipo de dato para MySQL
-  precioComparacion Decimal(10, 2)? 
+  precio      Decimal // Ajustamos el tipo de dato para MySQL
+  precioComparacion Decimal? 
   archivos    Archivo[]
   categoriaId Int?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
@@ -23,11 +23,13 @@ model Producto {
   variantes   Variante[]
   sku         String?   @unique // SKU (Stock Keeping Unit) para identificación interna
   codigoBarra String?   @unique // Código de barras para lectura con escáner
-  etiquetas   String[]  // Array para almacenar múltiples etiquetas
+  etiquetas ProductoEtiqueta[]
   estado      Boolean   @default(true) // Indica si el producto está activo o no
   proveedorId Int?
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
-  secciones Seccion[]? 
+  secciones Seccion[]
+  resenas Resena[]
+  pedidosProducto PedidoProducto[]
 }
 
 model Proveedor {
@@ -49,18 +51,10 @@ model Variante {
 model OpcionVariante {
   id         Int      @id @default(autoincrement())
   valor      String   // Valor específico de la opción (e.g., "Rojo", "Algodón")
-  precio      Decimal(10, 2)? 
+  precio      Decimal? 
   stock       Int?      @default(0) 
   varianteId Int
   variante   Variante  @relation(fields: [varianteId], references: [id])
-}
-
-model Archivo {
-  id        Int      @id @default(autoincrement())
-  url       String   
-  tipo      String   // Puede ser "imagen" o "video"
-  productoId Int
-  producto   Producto @relation(fields: [productoId], references: [id])
 }
 
 model Usuario {
@@ -69,17 +63,17 @@ model Usuario {
   email     String    @unique
   password  String
   pedidos   Pedido[]
+  resenas Resena[]
 }
 
 model Pedido {
   id         Int       @id @default(autoincrement())
-  fecha      DateTime  @default(CURRENT_TIMESTAMP) 
+  fecha      DateTime  @default(now()) 
 
   // Relación opcional con el usuario
   usuarioId  Int?
   usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
-
-  productos  Producto[] 
+ productos PedidoProducto[]
   estado     String    @default("pendiente") 
   direccionEnvio String
   nombresapellidos String
@@ -91,13 +85,22 @@ model Pedido {
   // Nuevos campos
   notas      String?  
   cantidad   Int      
-  total      Decimal(10, 2) 
-  pagado     Decimal(10, 2) 
-  etiquetas String[]
+  total      Decimal
+  pagado     Decimal
+  etiquetas PedidoEtiqueta[]
   metodoPago String // Almacena el método de pago utilizado (e.g., "tarjeta", "efectivo", "transferencia")
   codigoDescuento String?  // Código de descuento aplicado (opcional)
   nombreDescuento String?  // Nombre del descuento aplicado (opcional)
 
+}
+
+model PedidoProducto {
+    pedidoId  Int
+    productoId Int
+    pedido    Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+    producto  Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+    @@id([pedidoId, productoId])
 }
 
 model Seccion {
@@ -118,13 +121,52 @@ model Categoria {
   archivos    Archivo[] // Relación con archivos multimedia (imágenes, etc.)
 }
 
-// Modelo opcional para reseñas
-// model Reseña {
-//   id        Int      @id @default(autoincrement())
-//   usuarioId Int
-//   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
-//   productoId Int
-//   producto  Producto @relation(fields: [productoId], references: [id])
-//   calificacion Int
-//   comentario String?
-// }
+model Resena {
+  id          Int      @id @default(autoincrement())
+  estado      String   // Estado de la reseña (e.g., "aprobada", "pendiente", "rechazada")
+  usuarioId   Int?     // Relación opcional con Usuario
+  usuario     Usuario? @relation(fields: [usuarioId], references: [id])
+  nombre      String?  // Nombre del autor de la reseña (si no está registrado)
+  productoId  Int?     // Relación opcional con Producto
+  producto    Producto? @relation(fields: [productoId], references: [id])
+  titulo       String
+  comentario   String
+  localizacion String?
+  imagenUrl    String?
+  fechaCreacion DateTime @default(now())
+}
+
+model Etiqueta {
+  id    Int    @id @default(autoincrement())
+  nombre String @unique
+  productos ProductoEtiqueta[]
+  pedidos  PedidoEtiqueta[]
+}
+
+model ProductoEtiqueta {
+  productoId Int
+  etiquetaId Int
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  etiqueta   Etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+
+  @@id([productoId, etiquetaId])
+}
+
+model PedidoEtiqueta {
+  pedidoId  Int
+  etiquetaId Int
+  pedido    Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  etiqueta  Etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+
+  @@id([pedidoId, etiquetaId])
+}
+
+model Archivo {
+  id        Int    @id @default(autoincrement())
+  url       String 
+  tipo      String 
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
+  categoriaId Int?    // Asegúrate de que este campo esté definido
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+}
