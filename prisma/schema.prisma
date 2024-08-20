@@ -1,14 +1,130 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model Producto {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String
+  precio      Decimal(10, 2) // Ajustamos el tipo de dato para MySQL
+  precioComparacion Decimal(10, 2)? 
+  archivos    Archivo[]
+  categoriaId Int?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+  stock       Int?      @default(0) 
+  slug        String    @unique // URL amigable, generada a partir del nombre
+  metaTitulo  String?   // Título de la página en los resultados de búsqueda
+  metaDescripcion String? // Descripción breve que aparece en los resultados de búsqueda
+  variantes   Variante[]
+  sku         String?   @unique // SKU (Stock Keeping Unit) para identificación interna
+  codigoBarra String?   @unique // Código de barras para lectura con escáner
+  etiquetas   String[]  // Array para almacenar múltiples etiquetas
+  estado      Boolean   @default(true) // Indica si el producto está activo o no
+  proveedorId Int?
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  secciones Seccion[]? 
+}
+
+model Proveedor {
+  id        Int       @id @default(autoincrement())
+  nombre    String
+  contacto  String?
+  // ... otros campos relevantes del proveedor (dirección, teléfono, etc.)
+  productos Producto[]
+}
+
+model Variante {
+  id          Int             @id @default(autoincrement())
+  nombre      String          // Nombre de la variante (e.g., "Color", "Material")
+  productoId  Int
+  producto    Producto         @relation(fields: [productoId], references: [id])
+  opciones    OpcionVariante[]
+}
+
+model OpcionVariante {
+  id         Int      @id @default(autoincrement())
+  valor      String   // Valor específico de la opción (e.g., "Rojo", "Algodón")
+  precio      Decimal(10, 2)? 
+  stock       Int?      @default(0) 
+  varianteId Int
+  variante   Variante  @relation(fields: [varianteId], references: [id])
+}
+
+model Archivo {
+  id        Int      @id @default(autoincrement())
+  url       String   
+  tipo      String   // Puede ser "imagen" o "video"
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String    @unique
+  password  String
+  pedidos   Pedido[]
+}
+
+model Pedido {
+  id         Int       @id @default(autoincrement())
+  fecha      DateTime  @default(CURRENT_TIMESTAMP) 
+
+  // Relación opcional con el usuario
+  usuarioId  Int?
+  usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
+
+  productos  Producto[] 
+  estado     String    @default("pendiente") 
+  direccionEnvio String
+  nombresapellidos String
+  celular      String
+  referencia   String? // Referencia de la dirección (opcional)
+  provincia    String
+  distrito     String
+  correoElectronico String?
+  // Nuevos campos
+  notas      String?  
+  cantidad   Int      
+  total      Decimal(10, 2) 
+  pagado     Decimal(10, 2) 
+  etiquetas String[]
+  metodoPago String // Almacena el método de pago utilizado (e.g., "tarjeta", "efectivo", "transferencia")
+  codigoDescuento String?  // Código de descuento aplicado (opcional)
+  nombreDescuento String?  // Nombre del descuento aplicado (opcional)
+
+}
+
+model Seccion {
+  id        Int       @id @default(autoincrement())
+  nombre    String    // Nombre de la sección (e.g., "Características", "Reseñas", "Productos relacionados")
+  strapiId    String? // ID de la entrada de Strapi correspondiente a esta sección (opcional)
+  productos Producto[]
+}
+
+model Categoria {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  productos Producto[]
+  slug        String    @unique 
+  metaTitulo  String?  
+  metaDescripcion String? 
+  descripcion String?   // Descripción opcional de la categoría
+  archivos    Archivo[] // Relación con archivos multimedia (imágenes, etc.)
+}
+
+// Modelo opcional para reseñas
+// model Reseña {
+//   id        Int      @id @default(autoincrement())
+//   usuarioId Int
+//   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+//   productoId Int
+//   producto  Producto @relation(fields: [productoId], references: [id])
+//   calificacion Int
+//   comentario String?
+// }
