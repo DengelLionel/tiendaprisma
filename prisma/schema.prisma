@@ -170,3 +170,10 @@ model Archivo {
   categoriaId Int?    // Asegúrate de que este campo esté definido
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
 }
+
+model DuenoTienda {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String    @unique
+  password  String
+}
